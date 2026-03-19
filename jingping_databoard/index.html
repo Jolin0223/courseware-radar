@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互动资源竞品雷达</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { background: linear-gradient(135deg, #e0f2fe 0%, #ede9fe 50%, #f3e8ff 100%); background-attachment: fixed; font-family: -apple-system, sans-serif; color: #1e293b; }
+        .glass-card { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 10px 40px rgba(31, 38, 135, 0.05); border-radius: 16px; transition: transform 0.2s; }
+        .gradient-text { background: linear-gradient(90deg, #2563eb, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .table-header { cursor: pointer; transition: background 0.2s; }
+        .table-header:hover { background: rgba(0,0,0,0.02); }
+        .markdown-body h3 { font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #4338ca; }
+        .markdown-body p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151; font-size: 0.95rem; }
+        .markdown-body strong { color: #111827; }
+        .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; color: #374151; }
+        .insight-box { background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.4) 100%); border: 1px solid rgba(255,255,255,1); box-shadow: 0 4px 15px rgba(0,0,0,0.03); border-radius: 12px; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+    <div id="app" class="max-w-[1440px] mx-auto space-y-6">
+        
+        <header class="glass-card p-6 flex flex-col md:flex-row justify-between items-center gap-4 z-10 relative">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight gradient-text">竞品生态监控舱</h1>
+                <p class="text-sm text-gray-500 mt-1 font-medium">猿辅导·飞象老师&好未来·九章爱学(老师帮)数据监控看板</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3 bg-white/50 p-2 rounded-xl border border-white/60 shadow-sm">
+                <select v-model="filters.date" class="bg-transparent text-sm font-semibold text-gray-700 outline-none cursor-pointer px-2">
+                    <option v-for="d in availableDates" :key="d" :value="d">{{ d }} (最新)</option>
+                </select>
+                <div class="w-px h-6 bg-gray-300 mx-1"></div>
+                <select v-model="filters.platform" class="bg-transparent text-sm text-gray-600 outline-none cursor-pointer">
+                    <option value="全部">全平台</option><option value="飞象老师">飞象老师</option><option value="好未来老师帮">好未来老师帮</option>
+                </select>
+                <select v-model="filters.stage" class="bg-transparent text-sm text-gray-600 outline-none cursor-pointer">
+                    <option value="全部">全学段</option><option value="学前教育">学前教育</option><option value="小学">小学</option><option value="初中">初中</option>
+                </select>
+                <select v-model="filters.subject" class="bg-transparent text-sm text-gray-600 outline-none cursor-pointer">
+                    <option value="全部">全学科</option><option value="语文">语文</option><option value="数学">数学</option><option value="英语">英语</option><option value="综合/不分科">综合素质</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="glass-card p-6 border-l-4 border-l-indigo-500">
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                    <span class="bg-indigo-100 p-1.5 rounded-lg mr-2"><svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></span>
+                    大盘战略洞察 (Gemini 3 PRO)
+                </h2>
+                <div class="flex items-center gap-3">
+                    <button v-if="globalInsight.detail" @click="showModal = true" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-4 py-1.5 rounded-lg text-sm font-medium transition">
+                        📄 查看详细分析
+                    </button>
+                    <button @click="generateOverallAnalysis" :disabled="isAnalyzing" class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-5 py-1.5 rounded-lg text-sm font-medium shadow-md flex items-center transition">
+                        <svg v-if="isAnalyzing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        {{ isAnalyzing ? '模型推演中...' : '重新生成研报' }}
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="insight-box p-4 flex flex-col">
+                    <div class="flex items-center mb-2"><span class="bg-blue-100 text-blue-600 p-1 rounded mr-2 text-xs">🎯</span><span class="text-sm font-bold text-gray-700">竞品动作推测</span></div>
+                    <div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box1 || '等待生成...' }}</div>
+                </div>
+                <div class="insight-box p-4 flex flex-col relative overflow-hidden">
+                    <div class="flex items-center mb-2"><span class="bg-indigo-100 text-indigo-600 p-1 rounded mr-2 text-xs">🚀</span><span class="text-sm font-bold text-gray-700">高优迭代建议</span></div>
+                    <div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box2 || '等待生成...' }}</div>
+                </div>
+                <div class="insight-box p-4 flex flex-col">
+                    <div class="flex items-center mb-2"><span class="bg-purple-100 text-purple-600 p-1 rounded mr-2 text-xs">⚔️</span><span class="text-sm font-bold text-gray-700">生态差异打法</span></div>
+                    <div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box3 || '等待生成...' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+            <div v-for="metric in kpiMetrics" :key="metric.id" class="glass-card p-5 flex flex-col">
+                <div class="text-sm font-semibold text-gray-500 mb-1">{{ metric.title }}</div>
+                <div class="text-3xl font-black text-gray-800 mb-2">{{ metric.value }}</div>
+                <div class="text-[11px] text-gray-400 mb-4 flex-grow">{{ metric.desc }}</div>
+                
+                <div class="bg-blue-50/50 rounded-lg p-2.5 border border-blue-100/50 mt-auto">
+                    <button v-if="!metric.insight && !metric.loading" @click="generateCardInsight(metric)" class="text-xs font-medium text-indigo-600 hover:text-indigo-800 w-full text-left">✨ AI 诊断该指标</button>
+                    <div v-if="metric.loading" class="text-xs text-indigo-500 animate-pulse">诊断中...</div>
+                    <div v-if="metric.insight" class="text-xs text-gray-700 leading-snug">{{ metric.insight }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card overflow-hidden">
+            <div class="p-5 border-b border-gray-100 bg-white/40 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center">🛡️ 双平台五维硬核对抗局</h3>
+                <span class="text-xs text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm">基准: {{ filters.date }} | {{ filters.stage }} | {{ filters.subject }}</span>
+            </div>
+            <div class="overflow-x-auto p-2">
+                <table class="w-full text-center">
+                    <thead>
+                        <tr class="text-xs text-gray-500 tracking-wider border-b border-gray-100">
+                            <th class="p-3 font-semibold text-left">核心维度</th>
+                            <th class="p-3 font-bold text-blue-600">飞象老师</th>
+                            <th class="p-3 font-semibold">胜出方</th>
+                            <th class="p-3 font-bold text-indigo-600">好未来老师帮</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm divide-y divide-gray-50">
+                        <tr v-for="dim in comparisonTable" :key="dim.title" class="hover:bg-white/50 transition">
+                            <td class="p-4 text-left font-medium text-gray-700">{{ dim.title }}</td>
+                            <td class="p-4 font-bold" :class="dim.fx > dim.hw ? 'text-blue-600' : 'text-gray-500'">{{ dim.fxStr }}</td>
+                            <td class="p-4">
+                                <span v-if="dim.fx > dim.hw" class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-bold">飞象领先</span>
+                                <span v-else-if="dim.hw > dim.fx" class="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded font-bold">好未来领先</span>
+                                <span v-else class="text-gray-400 text-xs">持平</span>
+                            </td>
+                            <td class="p-4 font-bold" :class="dim.hw > dim.fx ? 'text-indigo-600' : 'text-gray-500'">{{ dim.hwStr }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="glass-card p-5 flex flex-col">
+                <h3 class="text-base font-bold text-gray-800 mb-2">图表 A：近7日新增产能与热度趋势</h3>
+                <div id="chartTrend" class="w-full h-[250px]"></div>
+                <div class="mt-3 bg-gray-50/80 p-3 rounded-lg border border-gray-100">
+                    <p class="text-[11px] text-gray-500 mb-1"><span class="font-bold text-gray-700">计算规则：</span>按自然日聚合当前筛选条件下的累积作品数与收藏数，连线成势。</p>
+                    <p class="text-[11px] text-gray-600"><span class="font-bold text-indigo-600">业务解读：</span>直观反映竞品产能爆发节点与教师活跃周期。曲线陡增通常意味着竞品发起了集中式教研任务或创作者活动。</p>
+                </div>
+            </div>
+            <div class="glass-card p-5 flex flex-col">
+                <h3 class="text-base font-bold text-gray-800 mb-2">图表 B：TOP50 创作者生态分布 (PGC vs UGC)</h3>
+                <div id="chartEcology" class="w-full h-[250px]"></div>
+                <div class="mt-3 bg-gray-50/80 p-3 rounded-lg border border-gray-100">
+                    <p class="text-[11px] text-gray-500 mb-1"><span class="font-bold text-gray-700">计算规则：</span>解析榜单中带有“官方/团队”标签的作者记为 PGC，其余记为 UGC。</p>
+                    <p class="text-[11px] text-gray-600"><span class="font-bold text-indigo-600">业务解读：</span>反映平台对官方教研的依赖度。UGC 占比越高，说明工具门槛越低，一线教师自流转生态越健康。</p>
+                </div>
+            </div>
+            <div class="glass-card p-5 flex flex-col">
+                <h3 class="text-base font-bold text-gray-800 mb-2">横向对比：全网沉淀总作品数</h3>
+                <div id="chartCompareWorks" class="w-full h-[220px]"></div>
+                <div class="mt-3 bg-gray-50/80 p-3 rounded-lg border border-gray-100">
+                    <p class="text-[11px] text-gray-500 mb-1"><span class="font-bold text-gray-700">计算规则：</span>当前筛选条件下，两大平台抓取到的课件总数量绝对值对比。</p>
+                    <p class="text-[11px] text-gray-600"><span class="font-bold text-indigo-600">业务解读：</span>直接体现竞品在该赛道的“题库/模板”规模厚度。差距巨大时暗示我们需要通过 AI 提效来快速追平基建。</p>
+                </div>
+            </div>
+            <div class="glass-card p-5 flex flex-col">
+                <h3 class="text-base font-bold text-gray-800 mb-2">横向对比：全网总星标热度 (教师偏好)</h3>
+                <div id="chartCompareStars" class="w-full h-[220px]"></div>
+                <div class="mt-3 bg-gray-50/80 p-3 rounded-lg border border-gray-100">
+                    <p class="text-[11px] text-gray-500 mb-1"><span class="font-bold text-gray-700">计算规则：</span>当前筛选条件下，双方课件被前台展现的累计收藏/点赞次数之和。</p>
+                    <p class="text-[11px] text-gray-600"><span class="font-bold text-indigo-600">业务解读：</span>相比作品数，热度更能代表一线教师的真实采用意愿。低作品高热度说明产出质量极高，命中核心痛点。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card overflow-hidden">
+            <div class="p-5 border-b border-gray-100 bg-white/40 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800">高维转化率榜单 (TOP 50)</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-xs text-gray-500 bg-gray-50/80 uppercase tracking-wider">
+                            <th class="p-4 font-semibold w-16 text-center">排名</th>
+                            <th class="p-4 font-semibold max-w-[300px]">课件标题</th>
+                            <th class="p-4 font-semibold">平台</th>
+                            <th class="p-4 font-semibold">创作者</th>
+                            <th @click="sortBy('stars')" class="p-4 font-semibold table-header text-right">收藏数 {{ sortKey==='stars' ? (sortOrder === -1 ? '↓' : '↑') : '' }}</th>
+                            <th @click="sortBy('views')" class="p-4 font-semibold table-header text-right">浏览量 {{ sortKey==='views' ? (sortOrder === -1 ? '↓' : '↑') : '' }}</th>
+                            <th @click="sortBy('fav_view_ratio_num')" class="p-4 font-bold text-indigo-600 table-header text-right bg-indigo-50/30">转化率 {{ sortKey==='fav_view_ratio_num' ? (sortOrder === -1 ? '↓' : '↑') : '' }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm divide-y divide-gray-100">
+                        <tr v-for="(item, index) in sortedTop50" :key="index" class="hover:bg-blue-50/30 transition">
+                            <td class="p-4 text-center font-bold" :class="index < 3 ? 'text-blue-500' : 'text-gray-400'">{{ index + 1 }}</td>
+                            <td class="p-4 font-medium text-gray-800 truncate max-w-[300px]"><a :href="item.url" target="_blank" class="hover:text-indigo-600">{{ item.title }}</a></td>
+                            <td class="p-4 text-xs text-gray-500">{{ item.platform }}</td>
+                            <td class="p-4 text-gray-600">{{ item.author }}</td>
+                            <td class="p-4 text-right text-gray-600">{{ item.stars.toLocaleString() }}</td>
+                            <td class="p-4 text-right text-gray-600">{{ item.views > 0 ? item.views.toLocaleString() : '-' }}</td>
+                            <td class="p-4 text-right font-bold bg-indigo-50/10 text-indigo-600">{{ item.fav_view_ratio }}</td>
+                        </tr>
+                        <tr v-if="sortedTop50.length === 0">
+                            <td colspan="7" class="p-8 text-center text-gray-400">当前筛选条件下暂无榜单数据</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 class="text-lg font-bold text-indigo-900">深度战略研报</h3>
+                    <button @click="showModal = false" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="p-6 overflow-y-auto markdown-body bg-white" v-html="renderedMarkdown"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
+
+        createApp({
+            setup() {
+                const rawData = ref([]);
+                const availableDates = ref([]); 
+                const filters = reactive({ date: '', platform: '全部', stage: '全部', subject: '全部' });
+                
+                const globalInsight = reactive({ box1: '', box2: '', box3: '', detail: '' });
+                const isAnalyzing = ref(false);
+                const showModal = ref(false);
+                const renderedMarkdown = computed(() => marked.parse(globalInsight.detail || '暂无详细分析'));
+
+                const kpiMetrics = ref([
+                    { id: 'total_works', title: '累计作品总产出', value: '0', desc: '当前筛选条件下，引擎抓取到的课件存量总数。', loading: false, insight: '' },
+                    { id: 'total_stars', title: '生态收藏总热度', value: '0', desc: '当前筛选条件下，课件被一线教师点击收藏的总次数。', loading: false, insight: '' },
+                    { id: 'avg_conversion', title: '平均大盘转化率', value: '0.0%', desc: '全局 收藏/浏览 比值，精准衡量资源模板的吸引力。', loading: false, insight: '' },
+                    { id: 'pgc_ratio', title: 'PGC 官方控盘率', value: '0.0%', desc: 'TOP榜单中官方教研团队发布占比，反映创作者门槛。', loading: false, insight: '' }
+                ]);
+
+                const sortKey = ref('fav_view_ratio_num');
+                const sortOrder = ref(-1);
+                let cTrend, cEcology, cWorks, cStars;
+
+                const filteredData = computed(() => {
+                    return rawData.value.filter(item => {
+                        const d = item.timestamp.split(' ')[0];
+                        return (!filters.date || d === filters.date) &&
+                               (filters.platform === '全部' || item.platform === filters.platform) &&
+                               (filters.stage === '全部' || item.stage === filters.stage) &&
+                               (filters.subject === '全部' || item.subject === filters.subject);
+                    });
+                });
+
+                const comparisonTable = computed(() => {
+                    let fx = { works: 0, stars: 0, views: 0, pgc: 0, ugc: 0, newWorks: 0 };
+                    let hw = { works: 0, stars: 0, views: 0, pgc: 0, ugc: 0, newWorks: 0 };
+                    
+                    const compareData = rawData.value.filter(item => {
+                        return item.timestamp.startsWith(filters.date) &&
+                               (filters.stage === '全部' || item.stage === filters.stage) &&
+                               (filters.subject === '全部' || item.subject === filters.subject);
+                    });
+
+                    compareData.forEach(item => {
+                        let target = item.platform === '飞象老师' ? fx : hw;
+                        target.works += item.total_works_count || 0;
+                        target.stars += item.total_stars_count || 0;
+                        if(item.top_50_works) {
+                            item.top_50_works.forEach(w => { if(w.is_pgc) target.pgc++; else target.ugc++; if(w.views > 0) target.views += w.views; });
+                        }
+                    });
+
+                    if (availableDates.value.length > 1) {
+                        const prevDate = availableDates.value[availableDates.value.indexOf(filters.date) + 1];
+                        if (prevDate) {
+                            let fxPrevWorks = 0, hwPrevWorks = 0;
+                            rawData.value.filter(item => item.timestamp.startsWith(prevDate) &&
+                               (filters.stage === '全部' || item.stage === filters.stage) &&
+                               (filters.subject === '全部' || item.subject === filters.subject)
+                            ).forEach(item => {
+                                if(item.platform === '飞象老师') fxPrevWorks += item.total_works_count || 0;
+                                else hwPrevWorks += item.total_works_count || 0;
+                            });
+                            fx.newWorks = Math.max(0, fx.works - fxPrevWorks);
+                            hw.newWorks = Math.max(0, hw.works - hwPrevWorks);
+                        }
+                    }
+
+                    const getRatio = (stars, views) => views > 0 ? ((stars / views) * 100).toFixed(1) : 0;
+                    let fxConv = parseFloat(getRatio(fx.stars, fx.views)), hwConv = parseFloat(getRatio(hw.stars, hw.views));
+                    let fxPgcR = parseFloat(getRatio(fx.pgc, fx.pgc + fx.ugc)), hwPgcR = parseFloat(getRatio(hw.pgc, hw.pgc + hw.ugc));
+
+                    return [
+                        { title: '累计作品总产出', fx: fx.works, hw: hw.works, fxStr: fx.works.toLocaleString(), hwStr: hw.works.toLocaleString() },
+                        { title: '单日新增作品数', fx: fx.newWorks, hw: hw.newWorks, fxStr: '+'+fx.newWorks, hwStr: '+'+hw.newWorks },
+                        { title: '生态收藏总热度', fx: fx.stars, hw: hw.stars, fxStr: fx.stars.toLocaleString(), hwStr: hw.stars.toLocaleString() },
+                        { title: '大盘平均转化率', fx: fxConv, hw: hwConv, fxStr: fxConv + '%', hwStr: hwConv + '%' },
+                        { title: 'PGC 官方控盘率', fx: fxPgcR, hw: hwPgcR, fxStr: fxPgcR + '%', hwStr: hwPgcR + '%' }
+                    ];
+                });
+
+                const sortedTop50 = computed(() => {
+                    let allWorks = [];
+                    filteredData.value.forEach(node => {
+                        if(node.top_50_works) {
+                            node.top_50_works.forEach(w => {
+                                w.fav_view_ratio_num = parseFloat(w.fav_view_ratio) || 0;
+                                w.platform = node.platform;
+                                allWorks.push(w);
+                            });
+                        }
+                    });
+                    const uniqueWorks = Array.from(new Map(allWorks.map(item => [item.title + '_' + item.author, item])).values());
+                    return uniqueWorks.sort((a, b) => {
+                        let valA = a[sortKey.value], valB = b[sortKey.value];
+                        if(valA < valB) return -1 * sortOrder.value;
+                        if(valA > valB) return 1 * sortOrder.value;
+                        return 0;
+                    }).slice(0, 50);
+                });
+
+                const sortBy = (key) => {
+                    if (sortKey.value === key) sortOrder.value *= -1;
+                    else { sortKey.value = key; sortOrder.value = -1; }
+                };
+
+                onMounted(async () => {
+                    initECharts();
+                    try {
+                        // 请求 Cloudflare Serverless 接口读取数据库
+                        const res = await fetch('/api/data');
+                        const resJson = await res.json();
+                        if(resJson.status === 'success' && resJson.data.length > 0) {
+                            rawData.value = resJson.data;
+                            availableDates.value = [...new Set(rawData.value.map(i => i.timestamp.split(' ')[0]))].sort().reverse();
+                            filters.date = availableDates.value[0];
+                            setTimeout(() => { generateOverallAnalysis(); }, 500);
+                        }
+                    } catch (e) { console.error("加载数据失败", e); }
+                });
+
+                watch(filteredData, () => {
+                    let wCount = 0, sCount = 0, pgcCount = 0, ugcCount = 0, totalViews = 0, totalStarsRatio = 0;
+                    filteredData.value.forEach(item => {
+                        wCount += item.total_works_count || 0;
+                        sCount += item.total_stars_count || 0;
+                        if(item.top_50_works) {
+                            item.top_50_works.forEach(w => {
+                                if(w.is_pgc) pgcCount++; else ugcCount++;
+                                if(w.views > 0) { totalViews += w.views; totalStarsRatio += w.stars; }
+                            });
+                        }
+                    });
+                    kpiMetrics.value[0].value = wCount.toLocaleString();
+                    kpiMetrics.value[1].value = sCount.toLocaleString();
+                    kpiMetrics.value[2].value = totalViews > 0 ? ((totalStarsRatio / totalViews) * 100).toFixed(1) + '%' : '0.0%';
+                    let tEco = pgcCount + ugcCount;
+                    kpiMetrics.value[3].value = tEco > 0 ? ((pgcCount / tEco) * 100).toFixed(1) + '%' : '0.0%';
+                    updateCharts();
+                    
+                    kpiMetrics.value.forEach(m => m.insight = '');
+                    if (rawData.value.length > 0) { generateOverallAnalysis(); }
+                }, { deep: true });
+
+                const initECharts = () => {
+                    cTrend = echarts.init(document.getElementById('chartTrend'));
+                    cEcology = echarts.init(document.getElementById('chartEcology'));
+                    cWorks = echarts.init(document.getElementById('chartCompareWorks'));
+                    cStars = echarts.init(document.getElementById('chartCompareStars'));
+                };
+
+                const updateCharts = () => {
+                    let fxWorks = 0, hwWorks = 0, fxStars = 0, hwStars = 0, pgc = 0, ugc = 0;
+                    filteredData.value.forEach(item => {
+                        if(item.platform === '飞象老师') { fxWorks += item.total_works_count; fxStars += item.total_stars_count; }
+                        if(item.platform === '好未来老师帮') { hwWorks += item.total_works_count; hwStars += item.total_stars_count; }
+                        if(item.top_50_works) { item.top_50_works.forEach(w => w.is_pgc ? pgc++ : ugc++); }
+                    });
+
+                    cWorks.setOption({ tooltip: { trigger: 'axis' }, grid: { left: '5%', right: '5%', bottom: '5%', top: '15%', containLabel: true }, xAxis: { type: 'category', data: ['飞象老师', '好未来老师帮'] }, yAxis: { type: 'value' }, series: [{ data: [fxWorks, hwWorks], type: 'bar', barWidth: '40%', itemStyle: { borderRadius: [4,4,0,0], color: '#3b82f6' } }] });
+                    cStars.setOption({ tooltip: { trigger: 'axis' }, grid: { left: '5%', right: '5%', bottom: '5%', top: '15%', containLabel: true }, xAxis: { type: 'category', data: ['飞象老师', '好未来老师帮'] }, yAxis: { type: 'value' }, series: [{ data: [fxStars, hwStars], type: 'bar', barWidth: '40%', itemStyle: { borderRadius: [4,4,0,0], color: '#8b5cf6' } }] });
+                    cEcology.setOption({ tooltip: { trigger: 'item' }, legend: { bottom: '0%', left: 'center' }, color: ['#6366f1', '#34d399'], series: [{ type: 'pie', radius: ['40%', '70%'], avoidLabelOverlap: false, itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 }, label: { show: false }, data: [ { value: pgc, name: 'PGC 官方' }, { value: ugc, name: 'UGC 教师' } ] }] });
+
+                    const dates = availableDates.value.slice(0, 7).reverse();
+                    let trendWorks = [], trendStars = [];
+                    dates.forEach(d => {
+                        let tw = 0, ts = 0;
+                        rawData.value.filter(i => i.timestamp.startsWith(d) && (filters.platform === '全部' || i.platform === filters.platform) && (filters.stage === '全部' || i.stage === filters.stage) && (filters.subject === '全部' || i.subject === filters.subject)).forEach(i => { tw += i.total_works_count || 0; ts += i.total_stars_count || 0; });
+                        trendWorks.push(tw); trendStars.push(ts);
+                    });
+                    cTrend.setOption({ tooltip: { trigger: 'axis' }, legend: { top: 0 }, grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true }, xAxis: { type: 'category', data: dates }, yAxis: { type: 'value' }, series: [ { name: '总产能', data: trendWorks, type: 'line', smooth: true, itemStyle: { color: '#3b82f6' } }, { name: '总热度', data: trendStars, type: 'line', smooth: true, itemStyle: { color: '#f59e0b' } } ] });
+                };
+
+                const generateCardInsight = async (metric) => {
+                    metric.loading = true;
+                    try {
+                        const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'kpi', metric_name: metric.title, metric_val: metric.value }) });
+                        const data = await res.json();
+                        metric.insight = data.status === 'success' ? data.analysis.replace(/[*_~`#]/g, '') : "分析异常";
+                    } catch (e) { metric.insight = "网络错误"; }
+                    finally { metric.loading = false; }
+                };
+
+                const generateOverallAnalysis = async () => {
+                    isAnalyzing.value = true;
+                    try {
+                        const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'global', context: JSON.stringify(filteredData.value.slice(0, 3)) }) });
+                        const data = await res.json();
+                        if(data.status === 'success') {
+                            const text = data.analysis;
+                            const stripMd = (str) => (str || '').replace(/[*_~`#]/g, '').trim();
+                            globalInsight.box1 = stripMd(text.match(/【竞品动作推测】(.*?)(?=\n【|$)/s)?.[1]) || '请查看详细研报获取内容。';
+                            globalInsight.box2 = stripMd(text.match(/【迭代高优建议】(.*?)(?=\n【|$)/s)?.[1]) || '请查看详细研报获取内容。';
+                            globalInsight.box3 = stripMd(text.match(/【生态差异打法】(.*?)(?=\n【|$)/s)?.[1]) || '请查看详细研报获取内容。';
+                            globalInsight.detail = text.split('【详细分析】')[1] || text;
+                        }
+                    } catch (e) { globalInsight.box1 = "生成失败，请检查网络"; }
+                    finally { isAnalyzing.value = false; }
+                };
+
+                return { rawData, availableDates, filters, kpiMetrics, comparisonTable, globalInsight, isAnalyzing, showModal, renderedMarkdown, generateCardInsight, generateOverallAnalysis, sortBy, sortKey, sortOrder, sortedTop50 }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>

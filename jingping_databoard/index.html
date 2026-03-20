@@ -44,14 +44,13 @@
                         <option value="全部">全学段</option><option value="学前教育">学前教育</option><option value="小学">小学</option><option value="初中">初中</option>
                     </select>
                     <select v-model="filters.subject" class="bg-transparent text-sm text-gray-600 outline-none cursor-pointer">
-                        <option value="全部">全学科</option><option value="语文">语文</option><option value="数学">数学</option><option value="英语">英语</option><option value="综合/不分科">综合素质</option>
+                        <option value="全部">全学科</option><option value="语文">语文</option><option value="数学">数学</option><option value="英语">英语</option><option value="物理">物理</option><option value="化学">化学</option><option value="综合/不分科">综合素质</option>
                     </select>
                 </div>
-                <button @click="triggerExcelUpload" class="bg-white hover:bg-green-50 text-green-600 border border-green-200 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition flex items-center">
+                <button @click="exportToExcel" class="bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition flex items-center">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                    导入 Excel
+                    导出 Excel
                 </button>
-                <input type="file" ref="excelInput" @change="handleExcelImport" accept=".xlsx, .xls, .csv" class="hidden">
             </div>
         </header>
 
@@ -63,7 +62,7 @@
                 </h2>
                 <div class="flex items-center gap-3">
                     <button v-if="globalInsight.detail" @click="showModal = true" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-4 py-1.5 rounded-lg text-sm font-medium transition">📄 查看详细分析</button>
-                    <button @click="generateOverallAnalysis" :disabled="isAnalyzing" class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-5 py-1.5 rounded-lg text-sm font-medium shadow-md flex items-center transition">
+                    <button @click="generateOverallAnalysis" :disabled="isAnalyzing" class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-5 py-1.5 rounded-lg text-sm font-medium shadow-md flex items-center transition disabled:opacity-70">
                         <svg v-if="isAnalyzing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         {{ isAnalyzing ? '模型推演中...' : '重新生成研报' }}
                     </button>
@@ -71,9 +70,9 @@
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div class="insight-box p-4 flex flex-col"><div class="flex items-center mb-2"><span class="bg-blue-100 text-blue-600 p-1 rounded mr-2 text-xs">🎯</span><span class="text-sm font-bold text-gray-700">竞品动作推测</span></div><div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box1 || '等待生成...' }}</div></div>
-                <div class="insight-box p-4 flex flex-col"><div class="flex items-center mb-2"><span class="bg-indigo-100 text-indigo-600 p-1 rounded mr-2 text-xs">🚀</span><span class="text-sm font-bold text-gray-700">高优迭代建议</span></div><div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box2 || '等待生成...' }}</div></div>
-                <div class="insight-box p-4 flex flex-col"><div class="flex items-center mb-2"><span class="bg-purple-100 text-purple-600 p-1 rounded mr-2 text-xs">⚔️</span><span class="text-sm font-bold text-gray-700">生态差异打法</span></div><div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box3 || '等待生成...' }}</div></div>
+                <div class="insight-box p-4 flex flex-col"><div class="flex items-center mb-2"><span class="bg-blue-100 text-blue-600 p-1 rounded mr-2 text-xs">🎯</span><span class="text-sm font-bold text-gray-700">竞品动作推测</span></div><div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box1 || '大模型思考中，请稍候...' }}</div></div>
+                <div class="insight-box p-4 flex flex-col"><div class="flex items-center mb-2"><span class="bg-indigo-100 text-indigo-600 p-1 rounded mr-2 text-xs">🚀</span><span class="text-sm font-bold text-gray-700">高优迭代建议</span></div><div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box2 || '大模型思考中，请稍候...' }}</div></div>
+                <div class="insight-box p-4 flex flex-col"><div class="flex items-center mb-2"><span class="bg-purple-100 text-purple-600 p-1 rounded mr-2 text-xs">⚔️</span><span class="text-sm font-bold text-gray-700">生态差异打法</span></div><div class="text-sm text-gray-600 leading-relaxed">{{ globalInsight.box3 || '大模型思考中，请稍候...' }}</div></div>
             </div>
         </div>
 
@@ -84,7 +83,9 @@
                 <div class="text-[11px] text-gray-400 mb-4 flex-grow">{{ metric.desc }}</div>
                 
                 <div class="bg-blue-50/50 rounded-lg p-2.5 border border-blue-100/50 mt-auto">
-                    <button v-if="!metric.insight && !metric.loading" @click="generateCardInsight(metric)" class="text-xs font-medium text-indigo-600 hover:text-indigo-800 w-full text-left">✨ AI 诊断该指标</button>
+                    <button v-if="!metric.insight && !metric.loading" @click="generateCardInsight(metric)" class="text-xs font-medium text-indigo-600 hover:text-indigo-800 w-full text-left flex items-center">
+                        ✨ AI 诊断该指标
+                    </button>
                     <div v-if="metric.loading" class="text-xs text-indigo-500 animate-pulse">诊断中...</div>
                     <div v-if="metric.insight" class="text-xs text-gray-700 leading-snug">{{ metric.insight }}</div>
                 </div>
@@ -93,7 +94,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="glass-card p-5">
-                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center">📚 各科目大盘沉淀对比</h3>
+                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center">📚 五大主科沉淀排行榜</h3>
                 <div id="chartSubject" class="w-full h-[280px]"></div>
             </div>
             <div class="glass-card p-5">
@@ -101,11 +102,11 @@
                 <div id="chartStage" class="w-full h-[280px]"></div>
             </div>
             <div class="glass-card p-5 lg:col-span-2">
-                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center">📊 各年级内容储量分布 (作品与热度)</h3>
+                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center">📊 飞象K9各年级内容储量分布 (作品与热度)</h3>
                 <div id="chartGrade" class="w-full h-[300px]"></div>
             </div>
             <div class="glass-card p-5 lg:col-span-2">
-                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center">🧩 年级与学科结构剖析图 (作品总数堆叠)</h3>
+                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center">🧩 飞象K9年级与学科结构剖析图</h3>
                 <div id="chartGradeSubject" class="w-full h-[350px]"></div>
             </div>
         </div>
@@ -123,7 +124,7 @@
 
         <div class="glass-card overflow-hidden">
             <div class="p-5 border-b border-gray-100 bg-white/40 flex justify-between items-center">
-                <h3 class="text-lg font-bold text-gray-800 flex items-center">🛡️ 双平台五维硬核对抗局</h3>
+                <h3 class="text-lg font-bold text-gray-800 flex items-center">🛡️ 双平台五维硬核对抗局 (含新增环比)</h3>
                 <span class="text-xs text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm">当前大盘基准日: {{ filters.date }}</span>
             </div>
             <div class="overflow-x-auto p-2">
@@ -220,9 +221,7 @@
                 const sortKey = ref('fav_view_ratio_num');
                 const sortOrder = ref(-1);
                 
-                // 声明所有的 ECharts 实例
                 let cTrend, cEcology, cSubject, cStage, cGrade, cGradeSubject;
-                const excelInput = ref(null);
 
                 const filteredData = computed(() => {
                     return rawData.value.filter(item => {
@@ -254,12 +253,30 @@
                         }
                     });
 
+                    // 恢复需求7：计算前一天的增量（环比）
+                    if (availableDates.value.length > 1) {
+                        const prevDate = availableDates.value[availableDates.value.indexOf(filters.date) + 1];
+                        if (prevDate) {
+                            let fxPrevWorks = 0, hwPrevWorks = 0;
+                            rawData.value.filter(item => {
+                                const d = item.timestamp ? item.timestamp.split(' ')[0] : '';
+                                return d === prevDate && (filters.stage === '全部' || item.stage === filters.stage) && (filters.subject === '全部' || item.subject === filters.subject);
+                            }).forEach(item => {
+                                if(item.platform === '飞象老师') fxPrevWorks += item.total_works_count || 0;
+                                else hwPrevWorks += item.total_works_count || 0;
+                            });
+                            fx.newWorks = Math.max(0, fx.works - fxPrevWorks);
+                            hw.newWorks = Math.max(0, hw.works - hwPrevWorks);
+                        }
+                    }
+
                     const getRatio = (stars, views) => views > 0 ? ((stars / views) * 100).toFixed(1) : 0;
                     let fxConv = parseFloat(getRatio(fx.stars, fx.views)), hwConv = parseFloat(getRatio(hw.stars, hw.views));
                     let fxPgcR = parseFloat(getRatio(fx.pgc, fx.pgc + fx.ugc)), hwPgcR = parseFloat(getRatio(hw.pgc, hw.pgc + hw.ugc));
 
                     return [
                         { title: '累计作品总产出', fx: fx.works, hw: hw.works, fxStr: fx.works.toLocaleString(), hwStr: hw.works.toLocaleString() },
+                        { title: '单日新增作品数', fx: fx.newWorks, hw: hw.newWorks, fxStr: '+'+fx.newWorks, hwStr: '+'+hw.newWorks },
                         { title: '生态收藏总热度', fx: fx.stars, hw: hw.stars, fxStr: fx.stars.toLocaleString(), hwStr: hw.stars.toLocaleString() },
                         { title: '大盘平均转化率', fx: fxConv, hw: hwConv, fxStr: fxConv + '%', hwStr: hwConv + '%' },
                         { title: 'PGC 官方控盘率', fx: fxPgcR, hw: hwPgcR, fxStr: fxPgcR + '%', hwStr: hwPgcR + '%' }
@@ -300,16 +317,14 @@
                         const resJson = await res.json();
                         if(resJson.status === 'success' && resJson.data && resJson.data.length > 0) {
                             rawData.value = resJson.data;
-                            updateDates();
+                            availableDates.value = [...new Set(rawData.value.map(i => i.timestamp ? i.timestamp.split(' ')[0] : '无日期'))].sort().reverse();
+                            if(availableDates.value.length > 0) filters.date = availableDates.value[0];
+                            
+                            // 需求2：一进来就自动分析（恢复逻辑）
                             setTimeout(() => { generateOverallAnalysis(); }, 500);
                         }
                     } catch (e) { console.error("加载云端数据失败", e); }
                 });
-
-                const updateDates = () => {
-                    availableDates.value = [...new Set(rawData.value.map(i => i.timestamp ? i.timestamp.split(' ')[0] : '无日期'))].sort().reverse();
-                    if(availableDates.value.length > 0 && !filters.date) filters.date = availableDates.value[0];
-                };
 
                 watch(filteredData, () => {
                     let wCount = 0, sCount = 0, pgcCount = 0, ugcCount = 0, totalViews = 0, totalStarsRatio = 0;
@@ -331,6 +346,8 @@
                     
                     updateCharts();
                     kpiMetrics.value.forEach(m => m.insight = '');
+                    // 切换维度时自动重写分析报告
+                    if (rawData.value.length > 0) { generateOverallAnalysis(); }
                 }, { deep: true });
 
                 const initECharts = () => {
@@ -343,64 +360,70 @@
                 };
 
                 const updateCharts = () => {
-                    // 1. 科目聚合
+                    // 1. 五大学科聚合 (需求4)
+                    const targetSubjects = ['语文', '数学', '英语', '物理', '化学'];
                     let subjMap = {};
+                    targetSubjects.forEach(s => subjMap[s] = { works: 0, stars: 0 });
+                    
                     // 2. 学段聚合
                     let stageMap = {};
-                    // 3. 年级聚合
+                    
+                    // 3 & 4. 飞象专属 K9 年级聚合 (需求5 & 6)
+                    const standardGrades = ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级', '七年级', '八年级', '九年级'];
                     let gradeMap = {};
-                    // 4. 年级x学科聚合
-                    let gradeSubjMap = {}; 
+                    let gradeSubjMap = {};
+                    standardGrades.forEach(g => {
+                        gradeMap[g] = { works: 0, stars: 0 };
+                        gradeSubjMap[g] = {};
+                    });
                     let allSubjectsForStack = new Set();
 
                     filteredData.value.forEach(item => {
-                        // 科目
-                        if(!subjMap[item.subject]) subjMap[item.subject] = { works: 0, stars: 0 };
-                        subjMap[item.subject].works += item.total_works_count || 0;
-                        subjMap[item.subject].stars += item.total_stars_count || 0;
+                        // 科目统计 (只管五大科)
+                        if(targetSubjects.includes(item.subject)) {
+                            subjMap[item.subject].works += item.total_works_count || 0;
+                            subjMap[item.subject].stars += item.total_stars_count || 0;
+                        }
                         
-                        // 学段
+                        // 学段统计
                         if(!stageMap[item.stage]) stageMap[item.stage] = 0;
                         stageMap[item.stage] += item.total_works_count || 0;
 
-                        // 年级
-                        const g = item.grade || '未知年级';
-                        if(!gradeMap[g]) gradeMap[g] = { works: 0, stars: 0 };
-                        gradeMap[g].works += item.total_works_count || 0;
-                        gradeMap[g].stars += item.total_stars_count || 0;
+                        // 年级统计 (严格过滤：飞象平台 + 标准年级)
+                        if (item.platform === '飞象老师' && standardGrades.includes(item.grade)) {
+                            gradeMap[item.grade].works += item.total_works_count || 0;
+                            gradeMap[item.grade].stars += item.total_stars_count || 0;
 
-                        // 年级 x 学科堆叠
-                        if(!gradeSubjMap[g]) gradeSubjMap[g] = {};
-                        if(!gradeSubjMap[g][item.subject]) gradeSubjMap[g][item.subject] = 0;
-                        gradeSubjMap[g][item.subject] += item.total_works_count || 0;
-                        allSubjectsForStack.add(item.subject);
+                            if(!gradeSubjMap[item.grade][item.subject]) gradeSubjMap[item.grade][item.subject] = 0;
+                            gradeSubjMap[item.grade][item.subject] += item.total_works_count || 0;
+                            allSubjectsForStack.add(item.subject);
+                        }
                     });
 
-                    // 渲染：科目对比图
-                    let subjKeys = Object.keys(subjMap);
-                    cSubject.setOption({ tooltip: { trigger: 'axis' }, legend: { top: 0 }, grid: { left: '5%', right: '5%', bottom: '5%', containLabel: true }, xAxis: { type: 'category', data: subjKeys }, yAxis: { type: 'value' }, series: [ { name: '作品数', type: 'bar', data: subjKeys.map(k=>subjMap[k].works), itemStyle: { color: '#3b82f6', borderRadius: [4,4,0,0] } }, { name: '收藏数', type: 'bar', data: subjKeys.map(k=>subjMap[k].stars), itemStyle: { color: '#8b5cf6', borderRadius: [4,4,0,0] } } ] });
+                    // 渲染：五大学科对比图 (排序并优化展示)
+                    let sortedSubjects = targetSubjects.map(s => ({ name: s, works: subjMap[s].works, stars: subjMap[s].stars }))
+                                                       .sort((a, b) => b.works - a.works);
+                    cSubject.setOption({ tooltip: { trigger: 'axis' }, legend: { top: 0 }, grid: { left: '5%', right: '5%', bottom: '5%', containLabel: true }, xAxis: { type: 'category', data: sortedSubjects.map(s=>s.name), axisLabel: { interval: 0, fontSize: 13, fontWeight: 'bold' } }, yAxis: { type: 'value' }, series: [ { name: '作品数', type: 'bar', data: sortedSubjects.map(s=>s.works), itemStyle: { color: '#3b82f6', borderRadius: [4,4,0,0] } }, { name: '收藏数', type: 'bar', data: sortedSubjects.map(s=>s.stars), itemStyle: { color: '#8b5cf6', borderRadius: [4,4,0,0] } } ] });
 
                     // 渲染：学段饼图
                     let stageData = Object.keys(stageMap).map(k => ({ name: k, value: stageMap[k] }));
                     cStage.setOption({ tooltip: { trigger: 'item' }, legend: { bottom: '0%' }, series: [{ type: 'pie', radius: ['40%', '70%'], itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 }, data: stageData }] });
 
-                    // 渲染：年级分布图
-                    let gradeKeys = Object.keys(gradeMap).sort(); // 默认按名称简易排序
-                    cGrade.setOption({ tooltip: { trigger: 'axis' }, legend: { top: 0 }, grid: { left: '5%', right: '5%', bottom: '5%', containLabel: true }, xAxis: { type: 'category', data: gradeKeys, axisLabel: { interval: 0, rotate: 30 } }, yAxis: { type: 'value' }, series: [ { name: '作品总数', type: 'bar', data: gradeKeys.map(k=>gradeMap[k].works), itemStyle: { color: '#0ea5e9', borderRadius: [4,4,0,0] } }, { name: '收藏热度', type: 'line', smooth: true, data: gradeKeys.map(k=>gradeMap[k].stars), itemStyle: { color: '#f59e0b' } } ] });
+                    // 渲染：飞象K9年级分布图
+                    cGrade.setOption({ tooltip: { trigger: 'axis' }, legend: { top: 0 }, grid: { left: '5%', right: '5%', bottom: '5%', containLabel: true }, xAxis: { type: 'category', data: standardGrades, axisLabel: { interval: 0, rotate: 30 } }, yAxis: { type: 'value' }, series: [ { name: '作品总数', type: 'bar', data: standardGrades.map(g=>gradeMap[g].works), itemStyle: { color: '#0ea5e9', borderRadius: [4,4,0,0] } }, { name: '收藏热度', type: 'line', smooth: true, data: standardGrades.map(g=>gradeMap[g].stars), itemStyle: { color: '#f59e0b', width: 3 } } ] });
 
-                    // 渲染：年级下各学科堆叠图
+                    // 渲染：飞象K9年级下各学科堆叠图
                     let stackSeries = [];
                     Array.from(allSubjectsForStack).forEach(subj => {
-                        stackSeries.push({ name: subj, type: 'bar', stack: 'total', emphasis: { focus: 'series' }, data: gradeKeys.map(g => gradeSubjMap[g][subj] || 0) });
+                        stackSeries.push({ name: subj, type: 'bar', stack: 'total', emphasis: { focus: 'series' }, data: standardGrades.map(g => gradeSubjMap[g][subj] || 0) });
                     });
-                    cGradeSubject.setOption({ tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } }, legend: { top: 0 }, grid: { left: '5%', right: '5%', bottom: '5%', containLabel: true }, xAxis: { type: 'category', data: gradeKeys, axisLabel: { interval: 0, rotate: 30 } }, yAxis: { type: 'value' }, series: stackSeries });
+                    cGradeSubject.setOption({ tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } }, legend: { top: 0 }, grid: { left: '5%', right: '5%', bottom: '5%', containLabel: true }, xAxis: { type: 'category', data: standardGrades, axisLabel: { interval: 0, rotate: 30 } }, yAxis: { type: 'value' }, series: stackSeries });
 
-                    // 生态图 (保留)
+                    // 生态与趋势图
                     let pgc = 0, ugc = 0;
                     filteredData.value.forEach(item => { if(item.top_50_works) item.top_50_works.forEach(w => w.is_pgc ? pgc++ : ugc++); });
                     cEcology.setOption({ tooltip: { trigger: 'item' }, legend: { bottom: '0%', left: 'center' }, color: ['#6366f1', '#34d399'], series: [{ type: 'pie', radius: ['40%', '70%'], itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 }, label: { show: false }, data: [ { value: pgc, name: 'PGC 官方' }, { value: ugc, name: 'UGC 教师' } ] }] });
 
-                    // 趋势图 (保留)
                     const dates = availableDates.value.slice(0, 7).reverse();
                     let trendWorks = [], trendStars = [];
                     dates.forEach(d => {
@@ -411,72 +434,65 @@
                     cTrend.setOption({ tooltip: { trigger: 'axis' }, legend: { top: 0 }, grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true }, xAxis: { type: 'category', data: dates }, yAxis: { type: 'value' }, series: [ { name: '总产能', data: trendWorks, type: 'line', smooth: true, itemStyle: { color: '#3b82f6' } }, { name: '总热度', data: trendStars, type: 'line', smooth: true, itemStyle: { color: '#f59e0b' } } ] });
                 };
 
-                // AI 与其他方法
-                const generateCardInsight = async (metric) => { /* 保持原逻辑 */ };
-                const generateOverallAnalysis = async () => { /* 保持原逻辑 */ };
-
-                // 需求4：导入 Excel 解析逻辑
-                const triggerExcelUpload = () => {
-                    excelInput.value.click();
+                // 恢复需求2、3：修复 AI 请求核心逻辑
+                const generateCardInsight = async (metric) => {
+                    metric.loading = true;
+                    try {
+                        const res = await fetch('/api/analyze', { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ type: 'kpi', metric_name: metric.title, metric_val: metric.value }) 
+                        });
+                        const data = await res.json();
+                        metric.insight = data.status === 'success' ? data.analysis.replace(/[*_~`#]/g, '') : "分析异常，请检查配置";
+                    } catch (e) { metric.insight = "请求 Cloudflare 接口超时"; }
+                    finally { metric.loading = false; }
                 };
 
-                const handleExcelImport = (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    
-                    const reader = new FileReader();
-                    reader.onload = (evt) => {
-                        try {
-                            const bstr = evt.target.result;
-                            const wb = XLSX.read(bstr, { type: 'binary' });
-                            const wsname = wb.SheetNames[0];
-                            const ws = wb.Sheets[wsname];
-                            const data = XLSX.utils.sheet_to_json(ws);
-                            
-                            // 极客解析引擎：尝试将用户的明细行转换为看板需要的聚合格式
-                            let parsedCount = 0;
-                            const today = new Date().toISOString().split('T')[0] + " (Excel导入)";
-                            
-                            data.forEach(row => {
-                                // 容错：查找常见列名
-                                const pf = row['平台'] || row['platform'] || '本地导入平台';
-                                const sub = row['学科'] || row['subject'] || row['科目'] || '未知学科';
-                                const gr = row['年级'] || row['grade'] || '未知年级';
-                                const st = row['学段'] || row['stage'] || '未知学段';
-                                const works = parseInt(row['作品数'] || row['total_works_count'] || 1);
-                                const stars = parseInt(row['收藏数'] || row['total_stars_count'] || row['星标数'] || 0);
-
-                                rawData.value.push({
-                                    timestamp: today,
-                                    platform: pf,
-                                    subject: sub,
-                                    grade: gr,
-                                    stage: st,
-                                    total_works_count: works,
-                                    total_stars_count: stars,
-                                    top_50_works: [] // 如果有明细标题作者等，也可继续扩展解析
-                                });
-                                parsedCount++;
-                            });
-
-                            if(parsedCount > 0) {
-                                alert(`✅ 成功解析并导入 ${parsedCount} 条数据！看板已实时刷新。`);
-                                updateDates();
-                                filters.date = today; // 自动切换到刚导入的数据
-                            } else {
-                                alert("⚠️ 未能在 Excel 中找到标准数据列（建议包含：平台, 学科, 年级, 学段, 作品数, 收藏数）。");
-                            }
-                        } catch (err) {
-                            alert("❌ Excel 解析失败，请检查文件格式。");
-                            console.error(err);
+                const generateOverallAnalysis = async () => {
+                    if(isAnalyzing.value) return; // 防连点
+                    isAnalyzing.value = true;
+                    try {
+                        const res = await fetch('/api/analyze', { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ type: 'global', context: JSON.stringify(filteredData.value.slice(0, 3)) }) 
+                        });
+                        const data = await res.json();
+                        if(data.status === 'success') {
+                            const text = data.analysis;
+                            const stripMd = (str) => (str || '').replace(/[*_~`#]/g, '').trim();
+                            globalInsight.box1 = stripMd(text.match(/【竞品动作推测】[:：]?(.*?)(?=\n【|$)/s)?.[1]) || '获取失败，请查看详细研报。';
+                            globalInsight.box2 = stripMd(text.match(/【迭代高优建议】[:：]?(.*?)(?=\n【|$)/s)?.[1]) || '获取失败，请查看详细研报。';
+                            globalInsight.box3 = stripMd(text.match(/【生态差异打法】[:：]?(.*?)(?=\n【|$)/s)?.[1]) || '获取失败，请查看详细研报。';
+                            globalInsight.detail = text.split('【详细分析】')[1] || text;
                         }
-                        // 清空 input，允许重复上传同一文件
-                        e.target.value = '';
-                    };
-                    reader.readAsBinaryString(file);
+                    } catch (e) { globalInsight.box1 = "模型接口请求失败，请确保大模型 API 通畅"; }
+                    finally { isAnalyzing.value = false; }
                 };
 
-                return { rawData, availableDates, filters, kpiMetrics, comparisonTable, globalInsight, isAnalyzing, showModal, renderedMarkdown, generateCardInsight, generateOverallAnalysis, sortBy, sortKey, sortOrder, sortedTop50, excelInput, triggerExcelUpload, handleExcelImport }
+                // 需求1：导出 Excel 功能
+                const exportToExcel = () => {
+                    if(rawData.value.length === 0) {
+                        alert("大盘没有可导出的数据！"); return;
+                    }
+                    const exportData = rawData.value.map(item => ({
+                        '抓取日期': item.timestamp,
+                        '平台': item.platform,
+                        '学段': item.stage,
+                        '年级': item.grade,
+                        '学科': item.subject,
+                        '作品总数': item.total_works_count,
+                        '收藏热度': item.total_stars_count
+                    }));
+                    
+                    const ws = XLSX.utils.json_to_sheet(exportData);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "竞品数据明细");
+                    XLSX.writeFile(wb, `竞品大盘数据_${filters.date}.xlsx`);
+                };
+
+                return { rawData, availableDates, filters, kpiMetrics, comparisonTable, globalInsight, isAnalyzing, showModal, renderedMarkdown, generateCardInsight, generateOverallAnalysis, sortBy, sortKey, sortOrder, sortedTop50, exportToExcel }
             }
         }).mount('#app')
     </script>

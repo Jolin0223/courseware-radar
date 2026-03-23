@@ -6,7 +6,7 @@ export async function onRequestPost(context) {
     // 核心安全：API Key 从 Cloudflare 环境变量读取
     const LLM_API_URL = "http://menshen-code.test.xdf.cn/v1/chat/completions";
     const LLM_API_KEY = env.LLM_API_KEY; 
-    const DEFAULT_MODEL = "xdf-gp-3.0";
+    const DEFAULT_MODEL = "xdf-co-4.6";
 
     let sys_prompt, user_prompt;
     

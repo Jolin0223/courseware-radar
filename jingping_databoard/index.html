@@ -41,10 +41,17 @@
                         <option value="全部">全平台</option><option value="飞象老师">飞象老师</option><option value="好未来老师帮">好未来老师帮</option>
                     </select>
                     <select v-model="filters.stage" class="bg-transparent text-sm text-gray-600 outline-none cursor-pointer">
-                        <option value="全部">全学段</option><option value="学前教育">学前教育</option><option value="小学">小学</option><option value="初中">初中</option>
+                        <option value="全部">全学段</option>
+                        <option value="学前教育">学前教育</option>
+                        <option value="小学">小学</option>
+                        <option value="初中">初中</option>
+                        <option value="高中">高中</option>
                     </select>
                     <select v-model="filters.subject" class="bg-transparent text-sm text-gray-600 outline-none cursor-pointer">
-                        <option value="全部">全学科</option><option value="语文">语文</option><option value="数学">数学</option><option value="英语">英语</option><option value="物理">物理</option><option value="化学">化学</option><option value="综合/不分科">综合素质</option>
+                        <option value="全部">全学科</option>
+                        <option v-for="sub in availableSubjects" :key="sub" :value="sub">
+                            {{ sub === '综合/不分科' ? '综合素质' : sub }}
+                        </option>
                     </select>
                 </div>
                 <button @click="exportToExcel" class="bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition flex items-center">
@@ -205,6 +212,27 @@
                 const rawData = ref([]);
                 const availableDates = ref([]); 
                 const filters = reactive({ date: '', platform: '全部', stage: '全部', subject: '全部' });
+                
+                // 动态计算当前筛选条件下的可用学科（实现级联）
+                const availableSubjects = computed(() => {
+                    let subjects = new Set();
+                    rawData.value.forEach(item => {
+                        const d = item.timestamp ? item.timestamp.split(' ')[0] : '无日期';
+                        if ((!filters.date || d === filters.date) &&
+                            (filters.platform === '全部' || item.platform === filters.platform) &&
+                            (filters.stage === '全部' || item.stage === filters.stage)) {
+                            if (item.subject) subjects.add(item.subject);
+                        }
+                    });
+                    return Array.from(subjects).sort();
+                });
+
+                // 监听学段变化：如果切换学段后，当前选中的学科不存在了，就重置为"全学科"
+                watch(() => filters.stage, () => {
+                    if (filters.subject !== '全部' && !availableSubjects.value.includes(filters.subject)) {
+                        filters.subject = '全部';
+                    }
+                });
                 
                 const globalInsight = reactive({ box1: '', box2: '', box3: '', detail: '' });
                 const isAnalyzing = ref(false);
@@ -492,7 +520,7 @@
                     XLSX.writeFile(wb, `竞品大盘数据_${filters.date}.xlsx`);
                 };
 
-                return { rawData, availableDates, filters, kpiMetrics, comparisonTable, globalInsight, isAnalyzing, showModal, renderedMarkdown, generateCardInsight, generateOverallAnalysis, sortBy, sortKey, sortOrder, sortedTop50, exportToExcel }
+                return { rawData, availableDates, availableSubjects, filters, kpiMetrics, comparisonTable, globalInsight, isAnalyzing, showModal, renderedMarkdown, generateCardInsight, generateOverallAnalysis, sortBy, sortKey, sortOrder, sortedTop50, exportToExcel }
             }
         }).mount('#app')
     </script>
